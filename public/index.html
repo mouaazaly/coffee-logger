@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coffee Logger</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #faf7f4;
+      color: #2c1a0e;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 2rem;
+      color: #5c3317;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04);
+    }
+
+    .card h2 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #8a6148;
+      margin-bottom: 1.1rem;
+    }
+
+    /* --- Form --- */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 480px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #6b4c35;
+      margin-bottom: 0.35rem;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border: 1.5px solid #e0d5cc;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #2c1a0e;
+      background: #faf7f4;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+
+    .field input:focus { border-color: #7b4f2e; }
+
+    button[type="submit"] {
+      margin-top: 1rem;
+      width: 100%;
+      padding: 0.65rem;
+      background: #7b4f2e;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    button[type="submit"]:hover { background: #5c3317; }
+    button[type="submit"]:disabled { background: #c8a98a; cursor: not-allowed; }
+
+    #form-status {
+      margin-top: 0.6rem;
+      font-size: 0.85rem;
+      min-height: 1.2em;
+      text-align: center;
+    }
+    #form-status.ok  { color: #2e7d32; }
+    #form-status.err { color: #c62828; }
+
+    /* --- Totals --- */
+    .totals-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .stat-box {
+      background: #faf7f4;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .stat-box .value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #5c3317;
+      line-height: 1.1;
+    }
+
+    .stat-box .label {
+      font-size: 0.78rem;
+      color: #8a6148;
+      margin-top: 0.3rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* --- Chart --- */
+    .chart-wrap {
+      position: relative;
+      height: 260px;
+    }
+
+    /* --- Entries table --- */
+    .entries-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .entries-table th {
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #8a6148;
+      padding: 0 0.5rem 0.6rem;
+      border-bottom: 1.5px solid #f0e8e0;
+    }
+
+    .entries-table td {
+      padding: 0.6rem 0.5rem;
+      border-bottom: 1px solid #f5f0eb;
+      color: #2c1a0e;
+    }
+
+    .entries-table tr:last-child td { border-bottom: none; }
+
+    .entries-table td.num { text-align: right; }
+
+    .btn-delete, .btn-edit {
+      background: none;
+      border: 1.5px solid #e8d5c8;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.25rem 0.6rem;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    .btn-delete { color: #b05533; }
+    .btn-delete:hover { background: #fdf0eb; border-color: #b05533; }
+
+    .btn-edit { color: #5c3317; margin-right: 0.35rem; }
+    .btn-edit:hover { background: #f5ede6; border-color: #7b4f2e; }
+
+    .empty-msg {
+      text-align: center;
+      color: #b09a8a;
+      font-size: 0.88rem;
+      padding: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>☕ Coffee Logger</h1>
+
+    <div class="card">
+      <h2>Log Today's Numbers</h2>
+      <form id="log-form">
+        <div class="form-grid">
+          <div class="field">
+            <label for="date">Date</label>
+            <input type="date" id="date" name="date" required>
+          </div>
+          <div class="field">
+            <label for="sales">Sales ($)</label>
+            <input type="number" id="sales" name="sales" min="0" step="0.01" placeholder="0.00" required>
+          </div>
+          <div class="field">
+            <label for="customers">Customers</label>
+            <input type="number" id="customers" name="customers" min="0" step="1" placeholder="0" required>
+          </div>
+        </div>
+        <button type="submit" id="submit-btn">Save Entry</button>
+        <div id="form-status"></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Running Totals</h2>
+      <div class="totals-grid">
+        <div class="stat-box">
+          <div class="value" id="total-sales">—</div>
+          <div class="label">Total Sales</div>
+        </div>
+        <div class="stat-box">
+          <div class="value" id="total-customers">—</div>
+          <div class="label">Total Customers</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Trends</h2>
+      <div class="chart-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Entries</h2>
+      <div id="entries-container"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script>
+    const dateInput = document.getElementById('date');
+    dateInput.value = new Date().toISOString().slice(0, 10);
+
+    let chart = null;
+
+    const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+
+    async function deleteEntry(date) {
+      await fetch(`/api/log/${date}`, { method: 'DELETE' });
+      await loadSummary();
+    }
+
+    function editEntry(row) {
+      document.getElementById('date').value = row.date;
+      document.getElementById('sales').value = row.sales;
+      document.getElementById('customers').value = row.customers;
+      document.getElementById('log-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('sales').focus();
+      const status = document.getElementById('form-status');
+      status.textContent = 'Editing — update values and save.';
+      status.className = 'ok';
+    }
+
+    function renderEntries(series) {
+      const container = document.getElementById('entries-container');
+      if (series.length === 0) {
+        container.innerHTML = '<p class="empty-msg">No entries yet.</p>';
+        return;
+      }
+      const rows = [...series].reverse().map(r => `
+        <tr>
+          <td>${r.date}</td>
+          <td class="num">${fmt.format(r.sales)}</td>
+          <td class="num">${r.customers.toLocaleString()}</td>
+          <td style="text-align:right">
+            <button class="btn-edit" data-date="${r.date}" data-sales="${r.sales}" data-customers="${r.customers}">Edit</button>
+            <button class="btn-delete" data-date="${r.date}">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+      container.innerHTML = `
+        <table class="entries-table">
+          <thead><tr>
+            <th>Date</th><th style="text-align:right">Sales</th>
+            <th style="text-align:right">Customers</th><th></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+      container.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', () => editEntry({
+          date: btn.dataset.date,
+          sales: parseFloat(btn.dataset.sales),
+          customers: parseInt(btn.dataset.customers, 10),
+        }));
+      });
+      container.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', () => deleteEntry(btn.dataset.date));
+      });
+    }
+
+    async function loadSummary() {
+      const res = await fetch('/api/summary');
+      const data = await res.json();
+
+      document.getElementById('total-sales').textContent = fmt.format(data.total_sales);
+      document.getElementById('total-customers').textContent = data.total_customers.toLocaleString();
+
+      renderEntries(data.series);
+
+      const labels = data.series.map(r => r.date);
+      const salesData = data.series.map(r => r.sales);
+      const custData = data.series.map(r => r.customers);
+
+      if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = salesData;
+        chart.data.datasets[1].data = custData;
+        chart.update();
+        return;
+      }
+
+      chart = new Chart(document.getElementById('chart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Sales ($)',
+              data: salesData,
+              borderColor: '#7b4f2e',
+              backgroundColor: 'rgba(123,79,46,0.1)',
+              yAxisID: 'ySales',
+              tension: 0.3,
+              fill: true,
+              pointRadius: 4,
+            },
+            {
+              label: 'Customers',
+              data: custData,
+              borderColor: '#b07d56',
+              backgroundColor: 'rgba(176,125,86,0.08)',
+              yAxisID: 'yCust',
+              tension: 0.3,
+              fill: false,
+              borderDash: [5, 3],
+              pointRadius: 4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { font: { size: 12 }, color: '#5c3317' } },
+          },
+          scales: {
+            x: {
+              ticks: { color: '#8a6148', font: { size: 11 } },
+              grid: { color: 'rgba(0,0,0,0.04)' },
+            },
+            ySales: {
+              type: 'linear',
+              position: 'left',
+              ticks: {
+                color: '#7b4f2e',
+                font: { size: 11 },
+                callback: v => '$' + v.toLocaleString(),
+              },
+              grid: { color: 'rgba(0,0,0,0.06)' },
+            },
+            yCust: {
+              type: 'linear',
+              position: 'right',
+              ticks: { color: '#b07d56', font: { size: 11 } },
+              grid: { drawOnChartArea: false },
+            },
+          },
+        },
+      });
+    }
+
+    document.getElementById('log-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      const status = document.getElementById('form-status');
+
+      btn.disabled = true;
+      status.textContent = '';
+      status.className = '';
+
+      const body = {
+        date: document.getElementById('date').value,
+        sales: parseFloat(document.getElementById('sales').value),
+        customers: parseInt(document.getElementById('customers').value, 10),
+      };
+
+      try {
+        const res = await fetch('/api/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          status.textContent = 'Saved!';
+          status.className = 'ok';
+          e.target.reset();
+          dateInput.value = new Date().toISOString().slice(0, 10);
+          await loadSummary();
+        } else {
+          status.textContent = data.error || 'Something went wrong.';
+          status.className = 'err';
+        }
+      } catch {
+        status.textContent = 'Network error.';
+        status.className = 'err';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    loadSummary();
+  </script>
+</body>
+</html>
